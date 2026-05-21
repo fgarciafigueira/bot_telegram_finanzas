@@ -1,38 +1,56 @@
-import { obtenerCotizacion, obtenerTopMovimientos, obtenerBottomMovimientos, obtenerCotizacionesMasivas } from './api.js';
+import { obtenerCotizacion, obtenerTopMovimientos, obtenerBottomMovimientos, obtenerCotizacionesMasivas, obtenerCCL, obtenerCotizacionUSA, ratiosCedears } from './api.js';
 import { obtenerPortafolios, guardarPortafolios, obtenerTodosLosPortafolios } from './db.js';
 
 // Pedido Precio Singular
 export const handlePrecio = async (bot, msg, match) => {
   const chatId = msg.chat.id
-  const ticker = match[1].toUpperCase().trim()
+  const tickerOriginal = match[1].toUpperCase().trim()
+  const tickerBA = tickerOriginal.endsWith('.BA') ? tickerOriginal : `${tickerOriginal}.BA`
+  const tickerUSA = tickerOriginal.replace('.BA', '')
 
   try {
-    bot.sendChatAction(chatId, 'typing')
-    const quote = await obtenerCotizacion(ticker)
+    bot.sendChatAction(chatId, 'typing');
+    const quote = await obtenerCotizacion(tickerBA)
 
     if (!quote || !quote.regularMarketPrice) {
-      return bot.sendMessage(chatId, `❌ No se encontraron datos para **${ticker}**.`)
+      return bot.sendMessage(chatId, `❌ No se encontraron datos para **${tickerOriginal}**.`)
     }
 
-    const precio = quote.regularMarketPrice
+    const precio = quote.regularMarketPrice;
     const variacion = quote.regularMarketChangePercent || 0
-    const moneda = quote.currency || 'ARS'
     const indicador = variacion >= 0 ? '🟢' : '🔴'
     const signo = variacion >= 0 ? '+' : ''
 
-    const msj = `📊 **${ticker}**\n💲 Precio: ${moneda} $${precio.toLocaleString('es-AR')}\n${indicador} Variación: ${signo}${variacion.toFixed(2)}%`
-    
-    bot.sendMessage(chatId, msj, { parse_mode: 'Markdown' })
+    let msjFinal = `📊 **${tickerBA}**\n💲 Precio: ARS $${precio.toLocaleString('es-AR')}\n${indicador} Variación: ${signo}${variacion.toFixed(2)}%`
+
+    // --- CÁLCULO DE PRECIO JUSTO ---
+    if (ratiosCedears[tickerUSA]) {
+      const precioUSA = await obtenerCotizacionUSA(tickerUSA)
+      const ccl = await obtenerCCL()
+      
+      if (precioUSA && ccl) {
+        const ratio = ratiosCedears[tickerUSA]
+        const precioJusto = (precioUSA / ratio) * ccl
+        
+        // Calculamos si está caro o barato respecto al valor teórico
+        const diferencia = ((precio - precioJusto) / precioJusto) * 100
+        const emojiDif = diferencia > 0 ? '📈' : '📉';
+        
+        msjFinal += `\n\n⚖️ **Valor Teórico (Justo):** ARS $${precioJusto.toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`
+        msjFinal += `\n${emojiDif} **Brecha vs Teórico:** ${signo}${diferencia.toFixed(2)}%`
+      }
+    }
+
+    bot.sendMessage(chatId, msjFinal, { parse_mode: 'Markdown' })
   } catch (error) {
-    
     bot.sendMessage(chatId, "⚠️ Hubo un problema al consultar el mercado.")
   }
-};
+}
 
 //Pedido creacion Portafolio
 export const handlePortafolio = async (bot, msg, match) => {
   const chatId = msg.chat.id
-  const nuevosTickers = match[1].toUpperCase().split(',').map(t => t.trim()).filter(t => t !== '');
+  const nuevosTickers = match[1].toUpperCase().split(/[', ']+/).map(t => t.trim()).filter(t => t !== '');
 
   await guardarPortafolios(chatId, nuevosTickers)
   

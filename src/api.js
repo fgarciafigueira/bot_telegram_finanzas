@@ -4,6 +4,54 @@ const headers = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
 }
 
+// 1. Buscamos el Dólar CCL
+export const obtenerCCL = async () => {
+  try {
+    const res = await axios.get('https://dolarapi.com/v1/dolares/contadoconliqui')
+    return res.data.venta;
+  } catch (error) {
+    return null
+  }
+};
+
+// 2. Buscamos el precio puro en Wall Street (Sin el .BA)
+export const obtenerCotizacionUSA = async (ticker) => {
+  try {
+    const url = `https://query2.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d`;
+    const response = await axios.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    return response.data.chart.result[0].meta.regularMarketPrice;
+  } catch (error) {
+    return null;
+  }
+}
+
+// 3. Diccionario de Ratios de los CEDEARs más populares
+export const ratiosCedears = {
+  // Tecnológicas y Gigantes
+  'AAPL': 10, 'MSFT': 30, 'NVDA': 240, 'TSLA': 15, 'AMZN': 144, 'GOOGL': 58, 'META': 24,
+  'AMD': 10, 'INTC': 5, 'QCOM': 12, 'CRM': 12, 'ADBE': 12, 'NFLX': 26, 'CSCO': 5, 'PLTR': 3,
+  
+  // E-commerce y Fintech
+  'MELI': 60, 'V': 18, 'MA': 18, 'PYPL': 2, 'BABA': 18, 'SQ': 12,
+  
+  // Consumo Masivo y Retail
+  'KO': 5, 'PEP': 12, 'WMT': 18, 'MCD': 12, 'PG': 12, 'COST': 12, 'NKE': 12, 'SBUX': 12, 'HD': 12,
+  
+  // Bancos y Financieras
+  'JPM': 12, 'BAC': 5, 'C': 5, 'WFC': 5, 'GS': 18,
+  
+  // Salud y Farmacéuticas
+  'JNJ': 12, 'UNH': 12, 'PFE': 3, 'ABBV': 12, 'MRK': 12, 'LLY': 18,
+  
+  // Industriales, Energía y Otros
+  'DIS': 12, 'BA': 18, 'XOM': 12, 'CVX': 12, 'CAT': 12, 'MMM': 12, 'GE': 20, 'F': 3, 'GM': 6,
+  'T': 3, 'VZ': 3, 'PBR': 4, 'VALE': 4, 'UGP': 4, 'BBD': 4,
+  
+  // Índices (ETFs)
+  'SPY': 20, 'QQQ': 20, 'DIA': 20, 'IWM': 12, 'EEM': 12
+}
+
+
 export const obtenerCotizacionesMasivas = async (tickersOriginales) => {
   const resultados = []
   const chunkSize = 10 // Procesamos de a 10 para no comer ban de Yahoo
