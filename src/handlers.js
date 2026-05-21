@@ -1,4 +1,4 @@
-import { obtenerCotizacion, obtenerTopMovimientos, obtenerBottomMovimientos } from './api.js';
+import { obtenerCotizacion, obtenerTopMovimientos, obtenerBottomMovimientos, obtenerCotizacionesMasivas } from './api.js';
 import { obtenerPortafolios, guardarPortafolios, obtenerTodosLosPortafolios } from './db.js';
 
 // Pedido Precio Singular
@@ -73,79 +73,73 @@ export const handleQuitar = async (bot, msg, match) => {
 
 //Resumen del Portafolio
 export const handleResumen = async (bot, msg) => {
-  const chatId = msg.chat.id
-  const miPortafolio = await obtenerPortafolios(chatId)
+  const chatId = msg.chat.id;
+  const miPortafolio = await obtenerPortafolios(chatId);
 
   if (miPortafolio.length === 0) {
-    return bot.sendMessage(chatId, "🤷‍♂️ Tu portafolio está vacío. Usá el comando `/agregar [TICKER]` o `/portafolio [TICKER1, TICKER2...]` para sumar activos.", { parse_mode: 'Markdown' })
+    return bot.sendMessage(chatId, "🤷‍♂️ Tu portafolio está vacío. Usá `/agregar [TICKER]`.", { parse_mode: 'Markdown' });
   }
 
   try {
     bot.sendChatAction(chatId, 'typing');
-    let mensajeResumen = '📋 **Resumen de tu Portafolio**\n---\n'
+    let mensajeResumen = '📋 **Resumen de tu Portafolio**\n---\n';
 
-    const promesas = miPortafolio.map(async (tickerOriginal) => {
-      try {
-        const quote = await obtenerCotizacion(tickerOriginal)
-        return { ticker: tickerOriginal, quote }
-      } catch (error) {
-        console.error(`💥 Error trayendo ${tickerOriginal}:`, error.message)
-        return { ticker: tickerOriginal, quote: null };
+    // 1 SOLA PETICIÓN: Le mandamos todo el array de una
+    const resultados = await obtenerCotizacionesMasivas(miPortafolio);
+
+    // Armamos el mensaje final
+    miPortafolio.forEach(tickerOriginal => {
+      const tickerBA = tickerOriginal.endsWith('.BA') ? tickerOriginal : `${tickerOriginal}.BA`;
+      
+      // Buscamos el resultado que coincide con este ticker
+      const quote = resultados.find(q => q.symbol === tickerBA);
+
+      if (!quote || !quote.regularMarketPrice) {
+        mensajeResumen += `❌ **${tickerOriginal}**: Sin datos\n`;
+        return;
       }
+      const precio = quote.regularMarketPrice;
+      const variacion = quote.regularMarketChangePercent || 0;
+      const moneda = quote.currency || 'ARS';
+      const indicador = variacion >= 0 ? '🟢' : '🔴';
+      const signo = variacion >= 0 ? '+' : '';
+      
+      mensajeResumen += `${indicador} **${tickerOriginal}**: ${moneda} $${precio.toLocaleString('es-AR')} (${signo}${variacion.toFixed(2)}%)\n`;
     });
 
-    const resultados = await Promise.all(promesas)
-
-    resultados.forEach(resultado => {
-      const { ticker, quote } = resultado
-      
-      if (!quote || !quote.regularMarketPrice) {
-        mensajeResumen += `❌ **${ticker}**: Sin datos\n`
-        return
-      }
-
-      const precio = quote.regularMarketPrice
-      const variacion = quote.regularMarketChangePercent || 0
-      const moneda = quote.currency || 'ARS'
-      const indicador = variacion >= 0 ? '🟢' : '🔴'
-      const signo = variacion >= 0 ? '+' : ''
-
-      mensajeResumen += `${indicador} **${ticker}**: ${moneda} $${precio.toLocaleString('es-AR')} (${signo}${variacion.toFixed(2)}%)\n`
-    })
-
-    bot.sendMessage(chatId, mensajeResumen, { parse_mode: 'Markdown' })
+    bot.sendMessage(chatId, mensajeResumen, { parse_mode: 'Markdown' });
   } catch (error) {
-    console.error("Error al armar el resumen:", error)
-    bot.sendMessage(chatId, "⚠️ Hubo un problema al armar el resumen.")
+    console.error("Error en resumen:", error);
+    bot.sendMessage(chatId, "⚠️ Hubo un problema al armar el resumen.");
   }
-}
+};
 
 
 //Radar de movimientos
 export const enviarAlertasDiarias = async (bot) => {
-  const portafolios = await obtenerTodosLosPortafolios()
-  const chatIds = Object.keys(portafolios) // Agarramos todos los IDs de usuarios guardados
+  const portafolios = await obtenerTodosLosPortafolios();
+  const chatIds = Object.keys(portafolios); // Agarramos todos los IDs de usuarios guardados
   
-  if (chatIds.length === 0) return // Si no hay nadie registrado, no hacemos nada
+  if (chatIds.length === 0) return; // Si no hay nadie registrado, no hacemos nada
 
   // 1. Buscamos el Top 10 del día
-  const top10 = await obtenerTopMovimientos()
-  let textoTop10 = '\n🔥 **Top CEDEARs Ganadores del Día**\n---\n'
+  const top10 = await obtenerTopMovimientos();
+  let textoTop10 = '\n🔥 **Top CEDEARs Ganadores del Día**\n---\n';
   
   top10.forEach(t => {
-    const indicador = t.variacion >= 0 ? '🟢' : '🔴'
-    const signo = t.variacion >= 0 ? '+' : ''
+    const indicador = t.variacion >= 0 ? '🟢' : '🔴';
+    const signo = t.variacion >= 0 ? '+' : '';
     textoTop10 += `${indicador} **${t.ticker}**: $${t.precio.toLocaleString('es-AR')} (${signo}${t.variacion.toFixed(2)}%)\n`;
-  })
+  });
 
-  const top10loosers= await obtenerBottomMovimientos()
-  textoTop10 += '\n❌ **Top CEDEARs Perdedores del Día**\n---\n'
+  const top10loosers = await obtenerBottomMovimientos();
+  textoTop10 += '\n❌ **Top CEDEARs Perdedores del Día**\n---\n';
 
   top10loosers.forEach(t => {
-    const indicador = t.variacion >= 0 ? '🟢' : '🔴'
-    const signo = t.variacion >= 0 ? '+' : ''
+    const indicador = t.variacion >= 0 ? '🟢' : '🔴';
+    const signo = t.variacion >= 0 ? '+' : '';
     textoTop10 += `${indicador} **${t.ticker}**: $${t.precio.toLocaleString('es-AR')} (${signo}${t.variacion.toFixed(2)}%)\n`;
-  })
+  });
 
   // 2. Le mandamos a cada usuario su resumen personal + el top 10
   for (const chatId of chatIds) {
@@ -154,21 +148,28 @@ export const enviarAlertasDiarias = async (bot) => {
 
     let mensaje = '🔔 **Cierre de Mercado**\n📋 **Tu Portafolio**\n---\n'
     
-    // Acá traemos los activos del usuario (importá obtenerCotizacion si no lo tenías)
-    const promesas = miPortafolio.map(t => obtenerCotizacion(t))
-    const resultados = await Promise.all(promesas)
+    // ACÁ ESTÁ EL CAMBIO: Usamos la petición en lote para que Yahoo no nos banee
+    const resultados = await obtenerCotizacionesMasivas(miPortafolio)
 
-    resultados.forEach((quote, index) => {
-      const ticker = miPortafolio[index];
+    // Iteramos sobre el portafolio original del usuario para armar su lista
+    miPortafolio.forEach((tickerOriginal) => {
+      // Aseguramos el .BA para buscarlo en los resultados que trajo la API
+      const tickerBA = tickerOriginal.endsWith('.BA') ? tickerOriginal : `${tickerOriginal}.BA`
+      
+      const quote = resultados.find(q => q.symbol === tickerBA)
+
       if (!quote || !quote.regularMarketPrice) {
-        mensaje += `❌ **${ticker}**: Sin datos\n`
+        mensaje += `❌ **${tickerOriginal}**: Sin datos\n`
         return
       }
-      const variacion = quote.regularMarketChangePercent || 0
+      
+      const variacion = quote.regularMarketChangePercent || 0;
+      const moneda = quote.currency || 'ARS'
       const indicador = variacion >= 0 ? '🟢' : '🔴'
       const signo = variacion >= 0 ? '+' : ''
-      mensaje += `${indicador} **${ticker}**: $${quote.regularMarketPrice.toLocaleString('es-AR')} (${signo}${variacion.toFixed(2)}%)\n`
-    })
+      
+      mensaje += `${indicador} **${tickerOriginal}**: ${moneda} $${quote.regularMarketPrice.toLocaleString('es-AR')} (${signo}${variacion.toFixed(2)}%)\n`
+    });
 
     // Pegamos el Top 10 abajo del portafolio personal
     mensaje += textoTop10

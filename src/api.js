@@ -103,3 +103,20 @@ export const obtenerTopMovimientos = async () => {
     return []
   }
 }
+
+export const obtenerCotizacionesMasivas = async (tickersOriginales) => {
+  try {
+    // A todos les agregamos .BA
+    const tickersBA = tickersOriginales.map(t => t.endsWith('.BA') ? t : `${t}.BA`);
+    
+    // Yahoo Finance permite pasarle un array directamente
+    const quotes = await yahooFinance.quote(tickersBA);
+    
+    // Si mandamos un solo ticker, devuelve un objeto. Si mandamos varios, un array. 
+    // Lo forzamos siempre a array para evitar errores.
+    return Array.isArray(quotes) ? quotes : [quotes];
+  } catch (error) {
+    console.error("Error en consulta masiva:", error.message);
+    return [];
+  }
+}
