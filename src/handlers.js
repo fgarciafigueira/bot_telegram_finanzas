@@ -24,6 +24,7 @@ export const handlePrecio = async (bot, msg, match) => {
     
     bot.sendMessage(chatId, msj, { parse_mode: 'Markdown' })
   } catch (error) {
+    
     bot.sendMessage(chatId, "⚠️ Hubo un problema al consultar el mercado.")
   }
 };
@@ -88,6 +89,7 @@ export const handleResumen = async (bot, msg) => {
         const quote = await obtenerCotizacion(tickerOriginal)
         return { ticker: tickerOriginal, quote }
       } catch (error) {
+        console.error(`💥 Error trayendo ${tickerOriginal}:`, error.message)
         return { ticker: tickerOriginal, quote: null };
       }
     });
