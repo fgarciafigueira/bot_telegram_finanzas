@@ -1,122 +1,85 @@
 import axios from 'axios'
-import YahooFinance from 'yahoo-finance2';
-const yahooFinance = new YahooFinance();
-import dotenv from 'dotenv'
-dotenv.config()
-const FINNHUB_KEY = process.env.FINNHUB_API_KEY
 
-import puppeteer from 'puppeteer'
+// Simulamos ser una persona usando Google Chrome en Windows para saltar filtros básicos
+const headers = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+};
 
-//traer los precios de los cedear en YAHOO
-export const obtenerCotizacion = async (tickerOriginal) => {
-  // Aseguramos el sufijo .BA en un solo lugar
-  const ticker = tickerOriginal.endsWith('.BA') ? tickerOriginal : `${tickerOriginal}.BA`;
-  return await yahooFinance.quote(ticker)
-}
+export const obtenerCotizacionesMasivas = async (tickersOriginales) => {
+  const resultados = [];
+  
+  // Hacemos las peticiones una por una para no saturar, pero el endpoint crudo responde en milisegundos
+  for (const tickerOriginal of tickersOriginales) {
+    const tickerBA = tickerOriginal.endsWith('.BA') ? tickerOriginal : `${tickerOriginal}.BA`;
+    
+    try {
+      // El secreto: Le pegamos al endpoint /v8/finance/chart que NO pide crumb/cookies
+      const url = `https://query2.finance.yahoo.com/v8/finance/chart/${tickerBA}?interval=1d&range=1d`;
+      const response = await axios.get(url, { headers });
+      
+      const meta = response.data.chart.result[0].meta;
+      const precioActual = meta.regularMarketPrice;
+      const cierreAnterior = meta.chartPreviousClose;
+      
+      // Calculamos la variación nosotros mismos con matemática básica
+      const variacion = ((precioActual - cierreAnterior) / cierreAnterior) * 100;
 
-export const obtenerBottomMovimientos = async () =>{
-   try {
-   const morelosers = await yahooFinance.screener ({
-        scrIds: "day_losers",
-        count:10
-   })
-   const lista=morelosers.quotes.map((stock) => {return stock.symbol})
-   
-   console.log(morelosers.quotes[0])
-   
-   // Verificamos que la respuesta tenga el formato esperado
-    if (!lista || !Array.isArray(lista)) {
-      throw new Error("Respuesta inesperada de Yahoo Finance");
+      resultados.push({
+        symbol: tickerBA,
+        regularMarketPrice: precioActual,
+        regularMarketChangePercent: variacion,
+        currency: meta.currency || 'ARS'
+      });
+    } catch (error) {
+      console.error(`💥 Bloqueo o error en ${tickerBA}:`, error.message);
     }
-    
-    const tickers = lista.slice(0, 15)
+  }
+  return resultados;
+};
 
-    // 3. Convertimos a .BA y consultamos los precios actuales en pesos a Yahoo
-    const promesas = tickers.map(async (ticker) => {
-      try {
-        const quote = await yahooFinance.quote(`${ticker}.BA`)
-        return {
-          ticker: ticker,
-          precio: quote.regularMarketPrice,
-          variacion: quote.regularMarketChangePercent || 0
-        };
-      } catch (e) {
-        return null // Si no hay CEDEAR, ignoramos
-      }
-    })
+// Reutilizamos la masiva para buscar uno solo (comando /precio)
+export const obtenerCotizacion = async (tickerOriginal) => {
+  const res = await obtenerCotizacionesMasivas([tickerOriginal]);
+  return res.length > 0 ? res[0] : null;
+};
 
-    const resultados = await Promise.all(promesas);
-    
-    // 4. Filtramos los nulos y ordenamos por variación
-    return resultados
-      .filter(r => r !== null)
-      .sort((a, b) => b.variacion - a.variacion)
-      .slice(0, 10); // Nos quedamos con el top 10
-
-  } catch (error) {
-    console.error("Error en radar automático:", error)
-    return []
-  } 
-}
+// --- RADAR DE CEDEARS ---
+const radarTickers = [
+  'AAPL.BA', 'MSFT.BA', 'NVDA.BA', 'TSLA.BA', 'AMZN.BA', 
+  'MELI.BA', 'KO.BA', 'V.BA', 'WMT.BA', 'META.BA', 
+  'GOOGL.BA', 'AMD.BA', 'DIS.BA', 'PYPL.BA', 'INTC.BA'
+];
 
 export const obtenerTopMovimientos = async () => {
   try {
-   const moreGainer = await yahooFinance.screener ({
-        scrIds: "day_gainers",
-        region: "AR",
-        count:10
-   })
-   const lista=moreGainer.quotes.map((stock) => {return stock.symbol})
-
-    // Verificamos que la respuesta tenga el formato esperado
-    if (!lista || !Array.isArray(lista)) {
-      throw new Error("Respuesta inesperada de Yahoo Finance");
-    }
-    console.log(lista)
+    const quotes = await obtenerCotizacionesMasivas(radarTickers);
+    const mapeados = quotes.map(q => ({
+      ticker: q.symbol.replace('.BA', ''),
+      precio: q.regularMarketPrice,
+      variacion: q.regularMarketChangePercent
+    }));
     
-    const tickers = lista.slice(0, 15)
-
-    // 3. Convertimos a .BA y consultamos los precios actuales en pesos a Yahoo
-    const promesas = tickers.map(async (ticker) => {
-      try {
-        const quote = await yahooFinance.quote(`${ticker}.BA`)
-        return {
-          ticker: ticker,
-          precio: quote.regularMarketPrice,
-          variacion: quote.regularMarketChangePercent || 0
-        };
-      } catch (e) {
-        return null // Si no hay CEDEAR, ignoramos
-      }
-    })
-
-    const resultados = await Promise.all(promesas);
-    
-    // 4. Filtramos los nulos y ordenamos por variación
-    return resultados
-      .filter(r => r !== null)
-      .sort((a, b) => b.variacion - a.variacion)
-      .slice(0, 10); // Nos quedamos con el top 10
-
+    // Ordenamos de mayor a menor (Top Ganadores)
+    mapeados.sort((a, b) => b.variacion - a.variacion);
+    return mapeados.slice(0, 10);
   } catch (error) {
-    console.error("Error en radar automático:", error)
-    return []
-  }
-}
-
-export const obtenerCotizacionesMasivas = async (tickersOriginales) => {
-  try {
-    // A todos les agregamos .BA
-    const tickersBA = tickersOriginales.map(t => t.endsWith('.BA') ? t : `${t}.BA`);
-    
-    // Yahoo Finance permite pasarle un array directamente
-    const quotes = await yahooFinance.quote(tickersBA);
-    
-    // Si mandamos un solo ticker, devuelve un objeto. Si mandamos varios, un array. 
-    // Lo forzamos siempre a array para evitar errores.
-    return Array.isArray(quotes) ? quotes : [quotes];
-  } catch (error) {
-    console.error("Error en consulta masiva:", error.message);
     return [];
   }
-}
+};
+
+export const obtenerBottomMovimientos = async () => {
+  try {
+    const quotes = await obtenerCotizacionesMasivas(radarTickers);
+    const mapeados = quotes.map(q => ({
+      ticker: q.symbol.replace('.BA', ''),
+      precio: q.regularMarketPrice,
+      variacion: q.regularMarketChangePercent
+    }));
+    
+    // Ordenamos de menor a mayor (Top Perdedores)
+    mapeados.sort((a, b) => a.variacion - b.variacion);
+    return mapeados.slice(0, 10);
+  } catch (error) {
+    return [];
+  }
+};
