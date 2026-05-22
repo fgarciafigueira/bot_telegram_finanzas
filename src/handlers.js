@@ -30,7 +30,7 @@ export const handlePrecio = async (bot, msg, match) => {
       
       if (precioUSA && ccl) {
         const ratio = ratiosCedears[tickerUSA]
-        const precioJusto = (precioUSA / ratio) * ccl
+        const precioJusto = ((precioUSA / ratio) * ccl).toFixed(2)
         
         // Calculamos si está caro o barato respecto al valor teórico
         const diferencia = ((precio - precioJusto) / precioJusto) * 100

@@ -28,27 +28,27 @@ export const obtenerCotizacionUSA = async (ticker) => {
 // 3. Diccionario de Ratios de los CEDEARs más populares
 export const ratiosCedears = {
   // Tecnológicas y Gigantes
-  'AAPL': 10, 'MSFT': 30, 'NVDA': 240, 'TSLA': 15, 'AMZN': 144, 'GOOGL': 58, 'META': 24,
-  'AMD': 10, 'INTC': 5, 'QCOM': 12, 'CRM': 12, 'ADBE': 12, 'NFLX': 26, 'CSCO': 5, 'PLTR': 3,
+  'AAPL': 20, 'MSFT': 30, 'NVDA': 24, 'TSLA': 15, 'AMZN': 144, 'GOOGL': 58, 'META': 24,
+  'AMD': 10, 'INTC': 5, 'QCOM': 11, 'CRM': 18, 'ADBE': 44, 'NFLX': 48, 'CSCO': 5, 'PLTR': 3,
   
   // E-commerce y Fintech
-  'MELI': 60, 'V': 18, 'MA': 18, 'PYPL': 2, 'BABA': 18, 'SQ': 12,
+  'MELI': 120, 'V': 18, 'MA': 33, 'PYPL': 8, 'BABA': 9, 'SQ': 12,
   
   // Consumo Masivo y Retail
-  'KO': 5, 'PEP': 12, 'WMT': 18, 'MCD': 12, 'PG': 12, 'COST': 12, 'NKE': 12, 'SBUX': 12, 'HD': 12,
+  'KO': 5, 'PEP': 18, 'WMT': 18, 'MCD': 24, 'PG': 15, 'COST': 48, 'NKE': 12, 'SBUX': 12, 'HD': 32,
   
   // Bancos y Financieras
-  'JPM': 12, 'BAC': 5, 'C': 5, 'WFC': 5, 'GS': 18,
+  'JPM': 15, 'BAC': 4, 'C': 3, 'WFC': 5, 'GS': 13,
   
   // Salud y Farmacéuticas
-  'JNJ': 12, 'UNH': 12, 'PFE': 3, 'ABBV': 12, 'MRK': 12, 'LLY': 18,
+  'JNJ': 12, 'UNH': 33, 'PFE': 4, 'ABBV': 10, 'MRK': 5, 'LLY': 56,
   
   // Industriales, Energía y Otros
-  'DIS': 12, 'BA': 18, 'XOM': 12, 'CVX': 12, 'CAT': 12, 'MMM': 12, 'GE': 20, 'F': 3, 'GM': 6,
-  'T': 3, 'VZ': 3, 'PBR': 4, 'VALE': 4, 'UGP': 4, 'BBD': 4,
+  'DIS': 12, 'BA': 18, 'XOM': 10, 'CVX': 16, 'CAT': 20, 'MMM': 10, 'GE': 20, 'F': 1, 'GM': 6,
+  'T': 3, 'VZ': 4, 'PBR': 1, 'VALE': 2, 'UGP': 1, 'BBD': 1,
   
   // Índices (ETFs)
-  'SPY': 20, 'QQQ': 20, 'DIA': 20, 'IWM': 12, 'EEM': 12
+  'SPY': 20, 'QQQ': 20, 'DIA': 20, 'IWM': 10, 'EEM': 5
 }
 
 
@@ -98,7 +98,7 @@ export const obtenerCotizacion = async (tickerOriginal) => {
 const radarTickers = [
   // Tecnológicas y Gigantes
   'AAPL.BA', 'MSFT.BA', 'NVDA.BA', 'TSLA.BA', 'AMZN.BA', 'GOOGL.BA', 'META.BA',
-  'AMD.BA', 'INTC.BA', 'QCOM.BA', 'CRM.BA', 'ADBE.BA', 'NFLX.BA', 'CSCO.BA',
+  'AMD.BA', 'INTC.BA', 'QCOM.BA', 'CRM.BA', 'ADBE.BA', 'NFLX.BA', 'CSCO.BA', 'PLTR.BA',
   // E-commerce y Fintech
   'MELI.BA', 'V.BA', 'MA.BA', 'PYPL.BA', 'BABA.BA', 'SQ.BA',
   // Consumo Masivo y Retail
