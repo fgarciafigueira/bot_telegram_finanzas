@@ -21,7 +21,7 @@ export const handlePrecio = async (bot, msg, match) => {
     const indicador = variacion >= 0 ? '🟢' : '🔴'
     const signo = variacion >= 0 ? '+' : ''
 
-    let msjFinal = `📊 **${tickerBA}**\n💲 Precio: ARS $${precio.toLocaleString('es-AR')}\n${indicador} Variación: ${signo}${variacion.toFixed(2)}%`
+    let msjFinal = `📊 **${tickerBA}**\n💲 Precio: ARS $${precio.toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}\n${indicador} Variación: ${signo}${variacion.toFixed(2)}%`
 
     // --- CÁLCULO DE PRECIO JUSTO ---
     if (ratiosCedears[tickerUSA]) {
@@ -30,7 +30,7 @@ export const handlePrecio = async (bot, msg, match) => {
       
       if (precioUSA && ccl) {
         const ratio = ratiosCedears[tickerUSA]
-        const precioJusto = ((precioUSA / ratio) * ccl).toFixed(2)
+        const precioJusto = (precioUSA / ratio) * ccl
         
         // Calculamos si está caro o barato respecto al valor teórico
         const diferencia = ((precio - precioJusto) / precioJusto) * 100
